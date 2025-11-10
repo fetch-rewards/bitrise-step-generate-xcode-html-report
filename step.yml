@@ -15,12 +15,13 @@ type_tags:
 - utility
 
 project_type_tags:
+- cordova
+- flutter
+- ionic
 - ios
+- kotlin-multiplatform
 - macos
 - react-native
-- cordova
-- ionic
-- flutter
 
 is_always_run: true
 
