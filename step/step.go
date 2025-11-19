@@ -179,6 +179,10 @@ func (r *ReportGenerator) generateTestReport(rootDir string, xcresultPath string
 		return fmt.Errorf("failed to generate html: %w", err)
 	}
 
+	if err := injectGoogleAnalytics(dirPath); err != nil {
+		return fmt.Errorf("failed to inject Google Analytics: %w", err)
+	}
+
 	if err := moveAssets(xcresultPath, dirPath); err != nil {
 		return fmt.Errorf("failed to move assets: %w", err)
 	}
@@ -275,6 +279,50 @@ func createReportInfo(htmlReportDir string) error {
 
 	if err := os.WriteFile(filepath.Join(htmlReportDir, htmlReportInfoFile), jsonData, 0755); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func injectGoogleAnalytics(htmlReportDir string) error {
+	const googleAnalyticsScript = `<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-VJV9NL05SD"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-VJV9NL05SD');
+</script>
+`
+
+	// Find all HTML files in the directory
+	htmlFiles, err := filepath.Glob(filepath.Join(htmlReportDir, "*.html"))
+	if err != nil {
+		return fmt.Errorf("failed to find HTML files: %w", err)
+	}
+
+	for _, htmlFile := range htmlFiles {
+		content, err := os.ReadFile(htmlFile)
+		if err != nil {
+			return fmt.Errorf("failed to read HTML file %s: %w", htmlFile, err)
+		}
+
+		htmlContent := string(content)
+
+		// Inject Google Analytics before </head>
+		if strings.Contains(htmlContent, "</head>") {
+			htmlContent = strings.Replace(htmlContent, "</head>", googleAnalyticsScript+"</head>", 1)
+		} else {
+			// If no </head> tag found, try to inject after <head>
+			if strings.Contains(htmlContent, "<head>") {
+				htmlContent = strings.Replace(htmlContent, "<head>", "<head>\n"+googleAnalyticsScript, 1)
+			}
+		}
+
+		if err := os.WriteFile(htmlFile, []byte(htmlContent), 0644); err != nil {
+			return fmt.Errorf("failed to write modified HTML file %s: %w", htmlFile, err)
+		}
 	}
 
 	return nil
